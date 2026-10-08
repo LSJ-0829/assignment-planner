@@ -61,7 +61,7 @@ def summarize_tool_result(name: str, content: str) -> list[str]:
         marker = next((i for i, ln in enumerate(lines) if ln.startswith(("경고", "다음 단계"))), len(lines))
         return lines[:marker][:14]  # 판정과 위반 사항만 (경고와 과제 원문 발췌는 생략)
     if name == "export_plan":
-        return [ln for ln in lines if ln.startswith(("내보내기", "계획 생성 실패", "- 캘린더", "- 계획표", "- 계획 저장소", "- 미룬", "  ·"))]
+        return [ln for ln in lines if ln.startswith(("내보내기", "계획 생성 실패", "- 캘린더", "- 계획표", "- 계획 저장소", "- 비상 계획", "- 미룬", "  ·"))]
     return lines[:10]  # submit_tasks / submit_plan / request_reanalysis: 짧은 요약이므로 그대로
 
 

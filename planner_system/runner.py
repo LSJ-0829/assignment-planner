@@ -98,6 +98,8 @@ async def run_planning(ctx: PlanContext, on_event: Callable[[dict], None], raw_c
         "reanalysis": ctx.reanalysis_count,
         "max_reanalysis": ctx.max_reanalysis,
         "postponed": list(ctx.postponed_log) if ctx.status == "approved" else [],
+        "emergency": ({"needed": ctx.emergency["needed"], "available": ctx.emergency["available"],
+                       "shortage": ctx.emergency["shortage"]} if ctx.emergency and ctx.status == "approved" else None),
         "files": [str(f) for f in ctx.output_files],
         "trace": analyze_result(result) if result else [],
     }

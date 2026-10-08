@@ -372,6 +372,7 @@ function showSummary(s) {
   let html = `<div class="summary ${ok ? "ok" : "bad"}"><h3>${ok ? "✅ 계획이 승인되었습니다" : "⚠️ 계획을 만들지 못했습니다"}</h3>`;
   if (!ok && s.failure_reason) html += `<div>${esc(s.failure_reason)}</div>`;
   html += `<div class="muted small">일정 검증 ${s.attempts}/${s.max_attempts}회 · 작업 재분해 ${s.reanalysis}/${s.max_reanalysis}회 · 토큰 입력 ${s.tokens_in.toLocaleString()} / 출력 ${s.tokens_out.toLocaleString()}</div>`;
+  if (s.emergency) html += `<div style="margin-top:6px;color:var(--warn)"><b>비상 계획</b> — 시간이 절대적으로 부족해 마감까지 남은 빈 시간을 전부 배치했습니다. 필요 ${s.emergency.needed.toFixed(1)}h 중 ${s.emergency.available.toFixed(1)}h (${s.emergency.shortage.toFixed(1)}h 부족)</div>`;
   if (s.postponed.length) html += `<div style="margin-top:6px">이 과제 때문에 미룬 기존 일정</div><ul>${s.postponed.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`;
   if (s.files.length) html += `<div style="margin-top:6px">결과 파일</div><ul>${s.files.map((f) => `<li class="small" title="${esc(f)}">${esc(baseName(f))} <span class="muted">— outputs 폴더</span></li>`).join("")}</ul>`;
   $("summary").innerHTML = html + "</div>";

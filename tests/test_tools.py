@@ -85,16 +85,31 @@ def test_max_attempts_leads_to_failed(ctx):
     assert "재시도 한도 초과" in out and ctx.status == "failed"
 
 
-def test_infeasible_detected_and_suggestion(ctx):
-    tasks = json.dumps([{"id": "T1", "title": "대형 과제", "hours": 12, "deadline": "2026-09-29 23:59"}])
+def test_infeasible_becomes_emergency_plan(ctx):
+    """시간이 절대적으로 부족하면 실패로 끝내지 않고, 마감까지 남은 빈 시간을 전부 그 과제로 채운다."""
+    tasks = json.dumps([
+        {"id": "T1", "title": "설계", "hours": 5, "deadline": "2026-09-29 23:59"},
+        {"id": "T2", "title": "구현", "hours": 7, "deadline": "2026-09-29 23:59", "depends_on": ["T1"]},
+    ])
     tools.submit_tasks(ctx, tasks)
     assert "부족" in tools.get_free_slots(ctx)
     tools.submit_plan(ctx, json.dumps([{"task_id": "T1", "date": "2026-09-29", "start": "13:00", "end": "17:00"}]))
     out = tools.validate_plan(ctx)
-    assert "INFEASIBLE" in out and ctx.status == "failed"
+    assert out.startswith("검증 결과: EMERGENCY") and ctx.status == "approved"
+    assert "필요 12.0h" in out and "부족" in out
+
+    # 세부 단계는 버리고 과제 이름 하나로, 마감까지의 모든 빈 시간을 채운다
+    assert list(ctx.tasks) == ["ALL"] and ctx.tasks["ALL"].title == "assignment"
+    spans = [(s.day.isoformat(), s.start, s.end) for s in ctx.sessions]
+    assert spans == [("2026-09-28", 18 * 60, 19 * 60), ("2026-09-28", 20 * 60, 23 * 60),
+                     ("2026-09-29", 9 * 60, 10 * 60), ("2026-09-29", 12 * 60, 23 * 60)]
+    # 이 시간표는 하루 상한(4h) 때문에 불가능했던 경우라, 상한을 넘겨 채우면 필요 시간이 확보된다
+    assert ctx.emergency["available"] == 16.0 and ctx.emergency["shortage"] == 0.0
+
     report = tools.export_plan(ctx)
-    assert "하루 최대 공부 시간을 4.0h →" in report
-    assert ctx.output_files[0].name.startswith("failure_report_")
+    assert "비상 계획" in report and any(f.suffix == ".ics" for f in ctx.output_files)
+    md = next(f for f in ctx.output_files if f.suffix == ".md").read_text(encoding="utf-8")
+    assert "비상 계획 안내" in md and "| ALL | assignment |" in md
 
 
 def test_export_ics(ctx):

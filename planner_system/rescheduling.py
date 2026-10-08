@@ -193,3 +193,34 @@ def repair_conflicts(plan_store, timetable: dict, now: datetime) -> tuple[list[s
     if ctx.postponed:
         plan_store.save()
     return moved, unresolved
+
+
+def build_emergency_plan(ctx: PlanContext) -> dict | None:
+    """시간이 절대적으로 부족한 과제의 비상 계획: 마감까지 남은 빈 시간을 전부 이 과제에 배치한다.
+
+    1) 미룰 수 있는 다른 과제의 계획을 모두 뒤로 미루고,
+    2) 부족이 발생한 마감까지의 모든 빈 시간(수업·약속·식사 시간 제외)을 과제 이름 하나로 채운다.
+       세부 단계는 의미가 없으므로 버리고, 과제 전체를 작업 하나로 둔다.
+    반환: {"needed", "available", "shortage", "deadline"}. 배치할 빈 시간이 전혀 없으면 None.
+    """
+    from .schedule import Session, Task  # 순환 import 방지
+
+    postpone_existing_plans(ctx)
+    shortage = current_shortage(ctx)
+    if shortage is None:
+        return None
+    deadline, _ = shortage
+    needed = sum(t.hours for t in ctx.tasks.values() if t.deadline <= deadline)
+    sessions = [
+        Session("ALL", d, s, e)
+        for d in ctx.schedule.days_until(deadline.date())
+        for s, e in ctx.schedule.free_slots(d, until=deadline)
+    ]
+    if not sessions:
+        return None
+    available = sum(s.hours for s in sessions)
+    title = ctx.assignment_path.stem.replace("_", " ")
+    ctx.tasks = {"ALL": Task("ALL", title, available, deadline)}
+    ctx.sessions = sessions
+    # 하루 상한을 둔 설정에서는 상한을 넘겨 배치하면 시간이 모자라지 않을 수도 있다. (부족 시간은 0 이상으로)
+    return {"needed": needed, "available": available, "shortage": max(needed - available, 0.0), "deadline": deadline}

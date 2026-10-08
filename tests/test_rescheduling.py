@@ -122,3 +122,15 @@ def test_no_postponing_when_time_is_enough(make):
     tools.submit_tasks(ctx, json.dumps([{"id": "T1", "title": "짧은 과제", "hours": 2, "deadline": "2026-10-02 23:59"}]))
     assert "미룰 필요가 없습니다" in tools.postpone_existing_plans(ctx)
     assert ctx.postponed == {}
+
+
+def test_emergency_plan_postpones_everything_it_can(make):
+    """비상 계획은 미룰 수 있는 기존 계획을 모두 미룬 뒤, 마감까지의 빈 시간을 전부 새 과제로 채운다."""
+    ctx = make()
+    tools.submit_tasks(ctx, json.dumps([{"id": "T1", "title": "대형 과제", "hours": 30, "deadline": "2026-09-29 23:59"}]))
+    out = tools.validate_plan(ctx)
+    assert out.startswith("검증 결과: EMERGENCY") and ctx.status == "approved"
+    assert len(ctx.postponed_log) == 2  # other.pdf의 두 세션이 마감(9/29) 뒤로 이동
+    # 기존 계획이 차지하던 9/28 20:00-23:00, 9/29 13:00-17:00도 새 과제가 쓴다
+    spans = {(s.day.isoformat(), s.start, s.end) for s in ctx.sessions}
+    assert ("2026-09-28", 20 * 60, 23 * 60) in spans and ("2026-09-29", 12 * 60, 23 * 60) in spans

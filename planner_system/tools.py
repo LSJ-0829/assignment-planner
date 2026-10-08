@@ -232,10 +232,23 @@ def validate_plan(ctx: PlanContext) -> str:
 
     if not feasible and not can_postpone:  # 작업을 다시 나눠도 해결되지 않으므로 가장 먼저 판정한다
         ctx.attempts += 1
-        ctx.status = "failed"
-        ctx.failure_reason = "마감 전까지 가용 시간이 부족하여 어떤 계획도 조건을 만족할 수 없음"
-        verdict = "FAIL (INFEASIBLE)"
-        next_step = "시간이 절대적으로 부족하여 재시도해도 해결되지 않습니다. 실패 보고로 넘어갑니다."
+        ctx.emergency = rescheduling.build_emergency_plan(ctx)
+        if ctx.emergency:
+            # 비상 계획: 마감까지 남은 빈 시간을 전부 이 과제(이름만)로 채워 승인한다.
+            e = ctx.emergency
+            ctx.status = "approved"
+            errors, meal_issues, task_issues = [], [], []
+            ctx.last_errors, ctx.last_task_issues, ctx.pending_meals = [], [], []
+            warnings = [f"시간 부족: 필요 {e['needed']:.1f}h, 마감까지 배치한 시간 {e['available']:.1f}h ({e['shortage']:.1f}h 부족)"]
+            ctx.last_warnings = warnings
+            verdict = "EMERGENCY (시간 절대 부족 → 비상 계획)"
+            next_step = (f"마감({e['deadline']:%m/%d %H:%M})까지 남은 빈 시간 {e['available']:.1f}h를 전부 이 과제에 배치했습니다. "
+                         "세부 단계 없이 과제 이름으로만 채웠습니다. 승인(APPROVE)하고, 부족한 시간을 사용자에게 알리세요.")
+        else:
+            ctx.status = "failed"
+            ctx.failure_reason = "마감 전까지 배치할 수 있는 빈 시간이 전혀 없음"
+            verdict = "FAIL (INFEASIBLE)"
+            next_step = "마감까지 빈 시간이 전혀 없습니다. 실패 보고로 넘어갑니다."
     elif task_issues and can_reanalyze:
         ctx.status = "reanalyze"
         ctx.reanalysis_count += 1
@@ -358,7 +371,12 @@ def export_plan(ctx: PlanContext) -> str:
         md.write_text(export.plan_markdown(ctx), encoding="utf-8")
         ctx.output_files = [ics, md]
         stored = _store_plan(ctx)
-        return f"내보내기 완료.\n- 캘린더 파일: {ics}\n- 계획표: {md}{stored}\n\n{export.schedule_text(ctx)}"
+        note = ""
+        if ctx.emergency:
+            e = ctx.emergency
+            note = (f"\n- 비상 계획: 시간이 부족해 마감까지 남은 빈 시간 {e['available']:.1f}h를 전부 배치했습니다. "
+                    f"필요 {e['needed']:.1f}h 대비 {e['shortage']:.1f}h 부족")
+        return f"내보내기 완료.\n- 캘린더 파일: {ics}\n- 계획표: {md}{stored}{note}\n\n{export.schedule_text(ctx)}"
 
     if ctx.status != "failed":
         ctx.status = "failed"

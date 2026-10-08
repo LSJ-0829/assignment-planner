@@ -238,3 +238,50 @@ def test_daily_limit_relaxes_automatically_for_urgent_work(tmp_path):
         {"task_id": "T2", "date": "2026-09-29", "start": "19:00", "end": "20:00"},
     ]))
     assert tools.validate_plan(urgent).startswith("검증 결과: PASS")  # 하루 9시간이지만 급한 과제라 허용
+
+
+# ----- 비상 계획 (시간이 절대적으로 부족한 과제) --------------------------------------
+HUGE = json.dumps([
+    {"id": "T1", "title": "설계", "hours": 12, "deadline": "2026-09-29 23:59"},
+    {"id": "T2", "title": "구현", "hours": 18, "deadline": "2026-09-29 23:59", "depends_on": ["T1"]},
+])
+
+
+def test_emergency_plan_fills_all_free_time_until_deadline(ctx):
+    """필요 30h, 마감까지 빈 시간 18h → 식사·수업을 뺀 모든 빈 시간을 과제 이름 하나로 채우고 12h 부족을 알린다."""
+    tools.submit_tasks(ctx, HUGE)
+    out = tools.validate_plan(ctx)
+    assert out.startswith("검증 결과: EMERGENCY") and "12.0h 부족" in out and ctx.status == "approved"
+    assert ctx.emergency["needed"] == 30
+    assert ctx.emergency["available"] == pytest.approx(18, abs=0.05) and ctx.emergency["shortage"] == pytest.approx(12, abs=0.05)
+    assert [t.title for t in ctx.tasks.values()] == ["assignment"]  # 세부 단계 없이 과제 이름만
+    spans = [(s.day.isoformat(), s.start, s.end) for s in ctx.sessions]
+    assert spans == [("2026-09-28", 19 * 60, 24 * 60),  # 오늘: 저녁(18-19시) 뒤부터 자정까지
+                     ("2026-09-29", 9 * 60, 12 * 60), ("2026-09-29", 13 * 60, 18 * 60),  # 내일: 식사 시간만 빼고 전부
+                     ("2026-09-29", 19 * 60, 23 * 60 + 59)]  # 마감(23:59)까지
+
+
+def test_emergency_plan_through_workflow(ctx):
+    """Planner가 계획을 내지 못해도, 검증 단계에서 비상 계획이 만들어져 승인·저장까지 간다."""
+    responses = [
+        call("read_assignment"), call("submit_tasks", tasks_json=HUGE), "등록",
+        call("get_free_slots"), "시간이 부족해 계획을 세울 수 없습니다.",
+        call("validate_plan"), "APPROVE\n마감까지 모든 빈 시간을 배치했습니다. 12시간이 부족합니다.",
+        call("export_plan"), "비상 계획입니다.\nPLAN_COMPLETE",
+    ]
+    _, sources = run(ctx, responses)
+    assert sources == ["user", "analyzer", "planner", "validator", "exporter"]
+    assert ctx.status == "approved" and ctx.emergency and ctx.attempts == 1
+    ics = next(f for f in ctx.output_files if f.suffix == ".ics").read_text(encoding="utf-8")
+    assert ics.count("BEGIN:VEVENT") == 4 and "SUMMARY:[과제] assignment" in ics
+
+
+def test_no_free_time_at_all_still_fails(tmp_path):
+    p = tmp_path / "a.txt"
+    p.write_text("과제: 기능 구현. 마감 2026-09-28 23:59까지 제출", encoding="utf-8")
+    busy = {"classes": [], "events": [{"name": "행사", "date": "2026-09-28", "start": "09:00", "end": "24:00"}],
+            "preferences": {"day_start": "09:00", "day_end": "24:00", "meals": []}}
+    c = PlanContext(p, busy, datetime(2026, 9, 28, 18, 0), output_dir=tmp_path, verbose=False, max_reanalysis=0)
+    tools.submit_tasks(c, json.dumps([{"id": "T1", "title": "구현", "hours": 3, "deadline": "2026-09-28 23:59"}]))
+    out = tools.validate_plan(c)
+    assert "INFEASIBLE" in out and c.status == "failed" and "빈 시간이 전혀 없음" in c.failure_reason

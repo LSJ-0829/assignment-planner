@@ -243,6 +243,9 @@ def print_summary(summary: dict) -> None:
     print(f"작업 재분해 : {summary['reanalysis']}회 / 최대 {summary['max_reanalysis']}회")
     if summary["postponed"]:
         print(f"미룬 일정   : 기존 계획 {len(summary['postponed'])}개 세션")
+    if summary.get("emergency"):
+        e = summary["emergency"]
+        print(f"비상 계획   : 필요 {e['needed']:.1f}h 중 {e['available']:.1f}h 배치 ({e['shortage']:.1f}h 부족)")
     for f in summary["files"]:
         print(f"결과 파일   : {f}")
 

@@ -36,6 +36,12 @@ def plan_markdown(ctx: PlanContext) -> str:
     out += ["", "## 일정", "", "| 날짜 | 시간 | 작업 |", "|---|---|---|"]
     for s in ctx.sessions:
         out.append(f"| {fmt_day(s.day)} | {fmt_minutes(s.start)}-{fmt_minutes(s.end)} | {s.task_id} {ctx.tasks[s.task_id].title} |")
+    if ctx.emergency:
+        e = ctx.emergency
+        out += ["", "## 비상 계획 안내", "",
+                f"- 마감({e['deadline']:%Y-%m-%d %H:%M})까지 시간이 절대적으로 부족해, 남은 빈 시간을 전부 이 과제에 배치했습니다.",
+                f"- 필요 {e['needed']:.1f}h / 배치 {e['available']:.1f}h → **{e['shortage']:.1f}h 부족**",
+                "- 세부 단계는 나누지 않았습니다. 범위를 줄이거나 마감 연장을 요청하는 것을 함께 고려하세요."]
     if ctx.meal_log:
         out += ["", "## 검증 단계에서 확정한 식사 시간", ""] + [f"- {m}" for m in ctx.meal_log]
     if ctx.postponed_log:

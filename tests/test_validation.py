@@ -69,10 +69,10 @@ def test_reanalysis_limit_downgrades_to_warning(ctx):
 
 
 def test_infeasible_takes_priority_over_reanalysis(ctx):
-    """시간이 절대적으로 부족하면 작업을 다시 나눠도 소용없으므로 바로 실패 처리한다."""
+    """시간이 절대적으로 부족하면 작업을 다시 나눠도 소용없으므로, 재분해 대신 바로 비상 계획으로 넘어간다."""
     tools.submit_tasks(ctx, json.dumps([{"id": "T1", "title": "대형 과제", "hours": 12, "deadline": "2026-09-29 23:59"}]))
-    assert "INFEASIBLE" in tools.validate_plan(ctx)
-    assert ctx.status == "failed" and ctx.reanalysis_count == 0
+    assert tools.validate_plan(ctx).startswith("검증 결과: EMERGENCY")
+    assert ctx.status == "approved" and ctx.reanalysis_count == 0 and ctx.emergency
 
 
 def test_validator_can_request_reanalysis_once(ctx):

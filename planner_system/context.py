@@ -71,6 +71,7 @@ class PlanContext:
         self.last_errors: list[str] = []
         self.last_warnings: list[str] = []
         self.last_task_issues: list[str] = []
+        self.emergency: dict | None = None  # 시간 절대 부족으로 비상 계획을 세운 경우: 필요/배치/부족 시간과 마감
         self.pending_meals: list = []  # 식사 시간이 없어 비울 시간대를 정해야 하는 날 (validation.MealIssue)
         self.meal_log: list[str] = []  # 확정한 식사 시간
         self.status = "analyzing"
