@@ -11,7 +11,7 @@
 Python 3.10 이상만 있으면 됩니다. **명령 하나로 설치와 실행이 함께 됩니다.**
 
 ```bash
-git clone <저장소 주소> assignment-planner
+git clone https://github.com/LSJ-0829/assignment-planner.git
 cd assignment-planner
 bash run.sh            # Windows: run.bat (더블클릭도 가능)
 ```
