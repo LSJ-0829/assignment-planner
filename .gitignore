@@ -1,0 +1,20 @@
+# 비밀 값: 절대 올리지 않는다
+.env
+API_KEY.txt
+*.key
+
+# 실행 환경, 캐시
+.venv/
+__pycache__/
+.pytest_cache/
+
+# 개인 데이터: 내 시간표, 약속, 계획, 넣은 과제 파일
+data/timetable.json
+data/events.json
+data/plans.json
+data/uploads/
+data/*.pdf
+
+# 실행 결과
+outputs/*
+!outputs/.gitkeep

@@ -1,0 +1,67 @@
+{
+  "_comment": "시간표 예시입니다. 이 파일을 timetable.json으로 복사해 고치거나, 화면의 '매주 반복 일정' 또는 --add-weekly 명령으로 하나씩 추가하세요. 요일: MON TUE WED THU FRI SAT SUN",
+  "classes": [
+    {
+      "id": "w1",
+      "name": "운영체제",
+      "short": "OS",
+      "day": "MON",
+      "start": "09:00",
+      "end": "10:15",
+      "from": "2026-09-01",
+      "count": 16
+    },
+    {
+      "id": "w2",
+      "name": "운영체제",
+      "short": "OS",
+      "day": "WED",
+      "start": "09:00",
+      "end": "10:15",
+      "from": "2026-09-01",
+      "count": 16
+    },
+    {
+      "id": "w3",
+      "name": "인공지능프로젝트",
+      "short": "인지개",
+      "day": "TUE",
+      "start": "18:00",
+      "end": "21:45",
+      "from": "2026-09-01",
+      "count": 16
+    },
+    {
+      "id": "w4",
+      "name": "아르바이트",
+      "day": "SAT",
+      "start": "12:00",
+      "end": "20:00",
+      "at_school": false
+    }
+  ],
+  "events": [],
+  "preferences": {
+    "day_start": "09:00",
+    "day_end": "24:00",
+    "min_session_minutes": 60,
+    "commute_before_minutes": 120,
+    "commute_after_minutes": 60,
+    "meals": [
+      {
+        "name": "점심",
+        "from": "11:30",
+        "to": "14:00",
+        "minutes": 60,
+        "prefer": "12:00"
+      },
+      {
+        "name": "저녁",
+        "from": "17:30",
+        "to": "20:30",
+        "minutes": 60,
+        "prefer": "18:00"
+      }
+    ]
+  }
+}

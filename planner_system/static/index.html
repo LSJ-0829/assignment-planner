@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assignment Planner</title>
+<style>
+  :root {
+    --bg: #f4f5f8; --card: #ffffff; --ink: #1b1f27; --muted: #6b7280; --line: #e3e6ec; --soft: #f0f2f6;
+    --accent: #3a5bd9; --accent-ink: #ffffff; --ok: #17804f; --bad: #c0392b; --warn: #b7791f;
+    --grid: #eceef3; --today: #eef2ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12141a; --card: #1b1e26; --ink: #e8eaf0; --muted: #9aa1ae; --line: #2c303b; --soft: #232732;
+      --accent: #7c95ff; --accent-ink: #10131a; --ok: #4cc38a; --bad: #ff7b6b; --warn: #e3b341;
+      --grid: #262a34; --today: #1f2540;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.5 system-ui, -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+  header { display: flex; align-items: baseline; gap: 12px; padding: 18px 24px 6px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 12px 24px 40px; align-items: start; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .card + .card { margin-top: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 15px; }
+  .muted { color: var(--muted); } .small { font-size: 12px; }
+
+  /* 버튼, 입력 */
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+           border-radius: 9px; padding: 7px 12px; cursor: pointer; }
+  button:hover { background: var(--soft); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; width: 100%; padding: 10px; }
+  button.primary:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.x { border: none; padding: 2px 6px; color: var(--muted); background: none; }
+  button.x:hover { color: var(--bad); background: var(--soft); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input, select { font: inherit; width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line);
+                  background: var(--card); color: var(--ink); }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input.need { border-color: var(--warn); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .check { display: flex; gap: 8px; align-items: center; margin: 12px 0; color: var(--muted); font-size: 13px; }
+  .check input { width: auto; }
+
+  /* 파일 끌어다 놓기 */
+  #drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px 12px; text-align: center; cursor: pointer;
+          transition: border-color .15s, background .15s; }
+  #drop:hover, #drop.over { border-color: var(--accent); background: var(--today); }
+  #drop .big { font-size: 26px; line-height: 1; }
+  #drop strong { display: block; margin-top: 6px; }
+  body.dragging #drop { border-color: var(--accent); }
+  .file { display: flex; align-items: center; gap: 8px; background: var(--soft); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
+  .file b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hint { font-size: 12px; margin-top: 6px; padding: 6px 9px; border-radius: 8px; background: var(--soft); }
+  .hint.warn { color: var(--warn); } .hint.ok { color: var(--ok); } .hint.bad { color: var(--bad); }
+
+  /* 주간 시간표 */
+  .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .cal-head h2 { margin: 0 auto 0 0; }
+  .cal-scroll { overflow-x: auto; }
+  .cal { display: grid; grid-template-columns: 44px repeat(7, minmax(92px, 1fr)); gap: 4px; min-width: 720px; }
+  .dh { text-align: center; padding: 6px 0 8px; border-radius: 9px; }
+  .dh b { display: block; font-size: 13px; } .dh span { font-size: 11px; color: var(--muted); }
+  .dh.today { background: var(--accent); color: var(--accent-ink); } .dh.today span { color: inherit; opacity: .85; }
+  .col, .gutter { position: relative; height: var(--h); }
+  .col { border-radius: 8px; background: repeating-linear-gradient(var(--card) 0 43px, var(--grid) 43px 44px); }
+  .col.today { background: repeating-linear-gradient(var(--today) 0 43px, var(--grid) 43px 44px); }
+  .gutter div { position: absolute; right: 4px; font-size: 11px; color: var(--muted); transform: translateY(-7px); }
+  .blk { position: absolute; left: 2px; right: 2px; border-radius: 6px; color: #fff; font-size: 11px; line-height: 1.25;
+         padding: 3px 5px; overflow: hidden; }
+  .blk b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .blk span { opacity: .85; }
+  .meal { position: absolute; left: 0; right: 0; background: rgba(230, 160, 40, .13); border-top: 1px dashed rgba(230, 160, 40, .55);
+          border-bottom: 1px dashed rgba(230, 160, 40, .55); }
+  .meal span { position: absolute; right: 4px; top: 1px; font-size: 10px; color: var(--warn); opacity: .9; }
+  .now { position: absolute; left: 0; right: 0; height: 2px; background: var(--bad); z-index: 2; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  /* 실행 과정 */
+  .pipe { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .node { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 13px; }
+  .node.done { color: var(--ink); border-color: var(--ok); }
+  .node.active { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  .node.active::after { content: " ●"; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+  @media (prefers-reduced-motion: reduce) { .node.active::after { animation: none; } }
+  .arrow { color: var(--muted); }
+  #steps { max-height: 460px; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 8px; }
+  .step-agent { font-weight: 700; margin: 12px 0 4px; color: var(--accent); }
+  .step-tool { margin: 4px 0 0 8px; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  .step-result { margin: 0 0 0 26px; color: var(--muted); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+  .step-msg { margin: 4px 0 0 8px; white-space: pre-wrap; word-break: break-word; }
+  .step-log { margin: 6px 0; color: var(--muted); font-size: 12.5px; }
+  .summary { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--soft); }
+  .summary.ok { border-left: 0; outline: 1px solid var(--ok); } .summary.bad { outline: 1px solid var(--bad); }
+  .summary h3 { margin: 0 0 6px; font-size: 14px; }
+  .summary ul { margin: 6px 0 0; padding-left: 18px; }
+
+  /* 목록 */
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  ul.list li:first-child { border-top: 0; }
+  ul.list .grow { flex: 1; min-width: 0; }
+  ul.list b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--soft); color: var(--muted); margin-left: 4px; }
+  .tag.high { color: var(--bad); } .tag.low { opacity: .8; }
+  #toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+           padding: 10px 16px; border-radius: 10px; max-width: 90vw; display: none; z-index: 10; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Assignment Planner</h1>
+  <p>과제 PDF와 시간표로, 겹치지 않고 마감 안에 끝나는 계획을 세웁니다.</p>
+</header>
+
+<main>
+  <div>
+    <section class="card">
+      <div class="cal-head">
+        <h2 id="weekTitle">주간 시간표</h2>
+        <button id="prev" aria-label="이전 주">◀</button>
+        <button id="thisWeek">이번 주</button>
+        <button id="next" aria-label="다음 주">▶</button>
+      </div>
+      <div class="cal-scroll"><div class="cal" id="cal"></div></div>
+      <div class="legend">
+        <span><i style="background:#3a5bd9"></i>수업</span>
+        <span><i style="background:#17804f"></i>과제 계획</span>
+        <span><i style="background:#8f3ab3"></i>약속·고정 일정</span>
+        <span><i style="background:#6e737b"></i>등교·하교</span>
+        <span><i style="background:rgba(230,160,40,.45)"></i>식사 시간대 (이 안에 60분은 비움)</span>
+        <span>빈 공간 = 과제를 할 수 있는 시간</span>
+      </div>
+    </section>
+
+    <section class="card" id="runCard" hidden>
+      <h2 id="runTitle">실행 과정</h2>
+      <div class="pipe" id="pipe"></div>
+      <div id="steps" aria-live="polite"></div>
+      <div id="summary"></div>
+    </section>
+  </div>
+
+  <aside>
+    <section class="card">
+      <h2>새 과제 계획 세우기</h2>
+      <div id="drop" role="button" tabindex="0" aria-label="과제 파일 선택">
+        <div class="big">📄</div>
+        <strong>과제 PDF를 여기에 끌어다 놓으세요</strong>
+        <span class="muted small">또는 눌러서 파일 선택 (PDF · TXT · MD)</span>
+      </div>
+      <input type="file" id="fileInput" accept=".pdf,.txt,.md" hidden>
+      <div class="file" id="fileChip" hidden><span>📎</span><b id="fileName"></b><button class="x" id="clearFile" title="선택 해제">✕</button></div>
+      <div id="fileHints"></div>
+
+      <label for="existing">또는 이전에 넣은 파일에서 선택</label>
+      <select id="existing"><option value="">선택 안 함</option></select>
+
+      <label for="deadline">마감일 <span id="deadlineNeed"></span></label>
+      <input id="deadline" placeholder="예: 10/11 또는 2026-10-11 23:59 (문서에 있으면 비워 두세요)">
+      <label for="note">과제 설명 <span id="noteNeed"></span></label>
+      <input id="note" placeholder="예: 전기자기학 과제, 서술형 2문제 (문서를 읽을 수 없을 때)">
+      <label for="priority">우선순위</label>
+      <select id="priority">
+        <option value="normal">보통</option>
+        <option value="high">높음 — 시간이 부족하면 다른 과제 계획을 미룸</option>
+        <option value="low">낮음</option>
+      </select>
+      <div class="check"><input type="checkbox" id="save" checked><label for="save" style="margin:0;font-size:13px">승인되면 계획 저장소에 저장</label></div>
+      <button class="primary" id="runBtn" disabled>계획 세우기</button>
+      <div class="hint warn" id="keyNote" hidden>Groq API 키가 없습니다. 프로그램을 실행한 터미널에서 키를 입력하거나 code/.env에 GROQ_API_KEY를 넣은 뒤 다시 실행하세요.</div>
+      <p class="muted small" style="margin:8px 0 0">실행에는 1~3분이 걸리고, Groq 토큰을 약 2만~4만 개 사용합니다.</p>
+    </section>
+
+    <section class="card">
+      <h2>매주 반복 일정 <span class="muted small">수업, 아르바이트 등</span></h2>
+      <label for="wkName">이름</label>
+      <input id="wkName" placeholder="예: 인공지능프로젝트">
+      <div class="row">
+        <div><label for="wkDay">요일</label>
+          <select id="wkDay"><option value="MON">월</option><option value="TUE">화</option><option value="WED">수</option>
+            <option value="THU">목</option><option value="FRI">금</option><option value="SAT">토</option><option value="SUN">일</option></select></div>
+        <div><label for="wkShort">약어 (선택)</label><input id="wkShort" placeholder="예: 인지개"></div>
+      </div>
+      <div class="row">
+        <div><label for="wkStart">시작</label><input id="wkStart" type="time" value="09:00"></div>
+        <div><label for="wkEnd">종료</label><input id="wkEnd" type="time" value="10:15"></div>
+      </div>
+      <div class="row">
+        <div><label for="wkFrom">시작일</label><input id="wkFrom" type="date"></div>
+        <div><label for="wkCount">반복 횟수 (비우면 계속)</label><input id="wkCount" type="number" min="1" placeholder="예: 16"></div>
+      </div>
+      <div class="check"><input type="checkbox" id="wkSchool" checked><label for="wkSchool" style="margin:0;font-size:13px">학교 일정 (등교·하교 시간을 함께 비움)</label></div>
+      <button id="wkAdd" style="width:100%">반복 일정 추가</button>
+      <ul class="list" id="weekly" style="margin-top:10px"></ul>
+    </section>
+
+    <section class="card">
+      <h2>약속 추가 <span class="muted small">특정 날짜에만 있는 일정</span></h2>
+      <label for="evName">이름</label>
+      <input id="evName" placeholder="예: 저녁 약속">
+      <label for="evDate">날짜</label>
+      <input id="evDate" type="date">
+      <div class="row">
+        <div><label for="evStart">시작</label><input id="evStart" type="time" value="18:00"></div>
+        <div><label for="evEnd">종료</label><input id="evEnd" type="time" value="20:00"></div>
+      </div>
+      <button id="evAdd" style="margin-top:12px;width:100%">약속 추가</button>
+      <ul class="list" id="events" style="margin-top:10px"></ul>
+    </section>
+
+    <section class="card">
+      <h2>저장된 계획</h2>
+      <ul class="list" id="plans"></ul>
+    </section>
+  </aside>
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Agent 응답의 간단한 마크다운(굵게, 코드, 줄바꿈 태그)만 정리해서 보여 준다.
+const md = (s) => esc(s).replace(/&lt;br\s*\/?&gt;/g, " / ").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "$1");
+const baseName = (p) => String(p).split(/[\\/]/).pop();
+const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const AGENTS = [["analyzer", "Analyzer"], ["planner", "Planner"], ["validator", "Validator"], ["exporter", "Exporter"]];
+const PRIORITY = { high: "높음", normal: "보통", low: "낮음" };
+const state = { weekDate: null, assignment: "", running: false, next: 0, visited: new Set() };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const err = new Error(data.error || "요청에 실패했습니다."); err.data = data; throw err; }
+  return data;
+}
+function toast(message, ms = 4500) {
+  const t = $("toast"); t.textContent = message; t.style.display = "block";
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => (t.style.display = "none"), ms);
+}
+
+/* ---------- 주간 시간표 ---------- */
+async function loadWeek() {
+  const w = await api("/api/week" + (state.weekDate ? "?date=" + state.weekDate : ""));
+  const span = w.day_end - w.day_start, height = (span / 60) * 44;
+  $("weekTitle").textContent = `주간 시간표 · ${w.days[0].label} ~ ${w.days[6].label}`;
+  $("keyNote").hidden = w.has_api_key;
+  state.monday = w.days[0].date;
+  let html = "<div></div>";
+  for (const d of w.days) {
+    html += `<div class="dh ${d.date === w.today ? "today" : ""}"><b>${d.label} (${d.weekday})</b><span>빈 시간 ${d.free_hours}h</span></div>`;
+  }
+  html += `<div class="gutter" style="--h:${height}px">`;
+  for (let m = w.day_start; m < w.day_end; m += 60) html += `<div style="top:${((m - w.day_start) / span) * 100}%">${hhmm(m)}</div>`;
+  html += "</div>";
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  for (const d of w.days) {
+    html += `<div class="col ${d.date === w.today ? "today" : ""}" style="--h:${height}px">`;
+    for (const m of w.meals || []) {
+      html += `<div class="meal" title="${esc(m.name)} 시간대 ${hhmm(m.start)}-${hhmm(m.end)}" style="top:${((m.start - w.day_start) / span) * 100}%;height:${((m.end - m.start) / span) * 100}%"><span>${esc(m.name)}</span></div>`;
+    }
+    for (const b of w.blocks.filter((x) => x.date === d.date)) {
+      const s = Math.max(b.start, w.day_start), e = Math.min(b.end, w.day_end);
+      if (e <= s) continue;
+      html += `<div class="blk" title="${esc(b.title)} ${hhmm(b.start)}-${hhmm(b.end)}" style="top:${((s - w.day_start) / span) * 100}%;height:${((e - s) / span) * 100}%;background:${b.color}"><b>${esc(b.name)}</b><span>${hhmm(b.start)}-${hhmm(b.end)}</span></div>`;
+    }
+    if (d.date === w.today && nowMin >= w.day_start && nowMin <= w.day_end) html += `<div class="now" style="top:${((nowMin - w.day_start) / span) * 100}%"></div>`;
+    html += "</div>";
+  }
+  $("cal").innerHTML = html;
+}
+function shiftWeek(days) {
+  const d = new Date((state.monday || new Date().toISOString().slice(0, 10)) + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  state.weekDate = d.toISOString().slice(0, 10);
+  loadWeek().catch((e) => toast(e.message));
+}
+$("prev").onclick = () => shiftWeek(-7);
+$("next").onclick = () => shiftWeek(7);
+$("thisWeek").onclick = () => { state.weekDate = null; loadWeek().catch((e) => toast(e.message)); };
+
+/* ---------- 과제 파일 (끌어다 놓기) ---------- */
+function showHints(info) {
+  const hints = [];
+  if (info.sparse) hints.push(["warn", "문서 내용이 이미지라 읽을 수 없습니다. 과제 설명과 마감일을 입력해 주세요."]);
+  else if (!info.has_date) hints.push(["warn", "문서에서 마감일을 찾지 못했습니다. 마감일을 입력해 주세요."]);
+  else hints.push(["ok", `문서를 읽었습니다 (${info.chars.toLocaleString()}자). 마감일은 문서에서 찾습니다.`]);
+  if (info.has_saved_plan) hints.push(["", "이 과제의 저장된 계획이 있습니다. 승인되면 새 계획으로 교체됩니다."]);
+  $("fileHints").innerHTML = hints.map(([c, t]) => `<div class="hint ${c}">${esc(t)}</div>`).join("");
+  const needDeadline = info.sparse || !info.has_date;
+  $("deadlineNeed").textContent = needDeadline ? "(필수)" : "";
+  $("noteNeed").textContent = info.sparse ? "(필수)" : "";
+  $("deadline").classList.toggle("need", needDeadline && !$("deadline").value);
+  $("note").classList.toggle("need", info.sparse && !$("note").value);
+}
+function setAssignment(name, info) {
+  state.assignment = name;
+  $("fileChip").hidden = !name;
+  $("fileName").textContent = name;
+  $("runBtn").disabled = !name || state.running;
+  if (!name) { $("fileHints").innerHTML = ""; $("deadlineNeed").textContent = ""; $("noteNeed").textContent = ""; $("existing").value = ""; }
+  else if (info) showHints(info);
+}
+async function uploadFile(file) {
+  if (!file) return;
+  if (!/\.(pdf|txt|md)$/i.test(file.name)) return toast("PDF, TXT, MD 파일만 넣을 수 있습니다.");
+  $("fileHints").innerHTML = `<div class="hint">올리는 중… ${esc(file.name)}</div>`;
+  try {
+    const info = await api("/api/upload?name=" + encodeURIComponent(file.name), { method: "POST", body: file });
+    await loadAssignments();
+    $("existing").value = info.name;
+    setAssignment(info.name, info);
+  } catch (e) { $("fileHints").innerHTML = `<div class="hint bad">${esc(e.message)}</div>`; }
+}
+async function loadAssignments() {
+  const { files } = await api("/api/assignments");
+  $("existing").innerHTML = '<option value="">선택 안 함</option>' + files.map((f) => `<option>${esc(f)}</option>`).join("");
+  if (state.assignment) $("existing").value = state.assignment;
+}
+const drop = $("drop");
+drop.onclick = () => $("fileInput").click();
+drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } };
+$("fileInput").onchange = (e) => { uploadFile(e.target.files[0]); e.target.value = ""; };
+$("clearFile").onclick = () => setAssignment("");
+$("existing").onchange = async (e) => {
+  const name = e.target.value;
+  if (!name) return setAssignment("");
+  try { setAssignment(name, await api("/api/inspect", json({ assignment: name }))); }
+  catch (err) { toast(err.message); setAssignment(""); }
+};
+// 창 어디에 놓아도 받는다. (브라우저가 PDF를 새 탭으로 열어 버리는 것을 막는다)
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; document.body.classList.add("dragging"); drop.classList.add("over"); });
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("dragging"); drop.classList.remove("over"); } });
+window.addEventListener("drop", (e) => {
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging"); drop.classList.remove("over");
+  uploadFile(e.dataTransfer.files[0]);
+});
+const json = (body, method = "POST") => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+/* ---------- 계획 수립 실행 ---------- */
+function renderPipe(active, finished) {
+  $("pipe").innerHTML = AGENTS.map(([key, label], i) => {
+    const cls = key === active && !finished ? "active" : state.visited.has(key) ? "done" : "";
+    return (i ? '<span class="arrow">→</span>' : "") + `<span class="node ${cls}">${label}</span>`;
+  }).join("") + '<span class="muted small" style="margin-left:8px">반려되면 Planner(재배치) 또는 Analyzer(재분해)로 돌아갑니다</span>';
+}
+function addStep(ev) {
+  const box = $("steps"), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  let html = "";
+  if (ev.type === "agent") { state.visited.add(ev.agent); state.active = ev.agent; renderPipe(ev.agent, false); html = `<div class="step-agent">${esc(ev.label)}</div>`; }
+  else if (ev.type === "tool_call") html = `<div class="step-tool">🔧 ${esc(ev.name)}</div>`;
+  else if (ev.type === "tool_result") html = `<div class="step-result">${ev.lines.map(esc).join("\n")}</div>`;
+  else if (ev.type === "message") html = `<div class="step-msg">${ev.lines.map(md).join("\n")}${ev.more ? `\n<span class="muted">… (${ev.more}줄 생략)</span>` : ""}</div>`;
+  else if (ev.type === "log") html = `<div class="step-log">⚙ ${esc(ev.text)}</div>`;
+  else if (ev.type === "request") html = `<div class="step-log">▶ ${esc(ev.text)}</div>`;
+  box.insertAdjacentHTML("beforeend", html);
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function showSummary(s) {
+  const ok = s.status === "approved";
+  let html = `<div class="summary ${ok ? "ok" : "bad"}"><h3>${ok ? "✅ 계획이 승인되었습니다" : "⚠️ 계획을 만들지 못했습니다"}</h3>`;
+  if (!ok && s.failure_reason) html += `<div>${esc(s.failure_reason)}</div>`;
+  html += `<div class="muted small">일정 검증 ${s.attempts}/${s.max_attempts}회 · 작업 재분해 ${s.reanalysis}/${s.max_reanalysis}회 · 토큰 입력 ${s.tokens_in.toLocaleString()} / 출력 ${s.tokens_out.toLocaleString()}</div>`;
+  if (s.postponed.length) html += `<div style="margin-top:6px">이 과제 때문에 미룬 기존 일정</div><ul>${s.postponed.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`;
+  if (s.files.length) html += `<div style="margin-top:6px">결과 파일</div><ul>${s.files.map((f) => `<li class="small" title="${esc(f)}">${esc(baseName(f))} <span class="muted">— outputs 폴더</span></li>`).join("")}</ul>`;
+  $("summary").innerHTML = html + "</div>";
+}
+function setRunning(on) {
+  state.running = on;
+  $("runBtn").disabled = on || !state.assignment;
+  $("runBtn").textContent = on ? "계획을 세우는 중…" : "계획 세우기";
+}
+async function poll() {
+  try {
+    const r = await api("/api/run?since=" + state.next);
+    r.events.forEach(addStep);
+    state.next = r.next;
+    if (r.done) {
+      setRunning(false);
+      renderPipe(null, true);
+      if (r.summary) showSummary(r.summary);
+      await Promise.all([loadWeek(), loadPlans()]);
+      return;
+    }
+  } catch (e) { /* 일시적인 연결 오류는 다음 주기에 다시 시도 */ }
+  setTimeout(poll, 1000);
+}
+$("runBtn").onclick = async () => {
+  ["deadline", "note"].forEach((id) => $(id).classList.remove("need"));
+  try {
+    const r = await api("/api/run", json({
+      assignment: state.assignment, deadline: $("deadline").value.trim(), note: $("note").value.trim(),
+      priority: $("priority").value, save: $("save").checked,
+    }));
+    state.next = 0; state.visited = new Set();
+    $("runCard").hidden = false; $("steps").innerHTML = ""; $("summary").innerHTML = "";
+    $("runTitle").textContent = "실행 과정 · " + r.assignment;
+    renderPipe(null, false); setRunning(true);
+    $("runCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    poll();
+  } catch (e) {
+    (e.data && e.data.needs || []).forEach((id) => $(id).classList.add("need"));
+    toast(e.message);
+  }
+};
+
+/* ---------- 약속 ---------- */
+async function loadEvents() {
+  const { events } = await api("/api/events");
+  $("events").innerHTML = events.length ? events.map((e) =>
+    `<li><div class="grow"><b>${esc(e.name)}</b><span class="muted small">${e.date.slice(5)} ${e.start}-${e.end}</span></div><button class="x" data-ev="${esc(e.id)}" title="삭제">✕</button></li>`
+  ).join("") : '<li class="muted small">등록된 약속이 없습니다.</li>';
+}
+$("evAdd").onclick = async () => {
+  try {
+    const r = await api("/api/events", json({ name: $("evName").value, date: $("evDate").value, start: $("evStart").value, end: $("evEnd").value }));
+    $("evName").value = "";
+    let msg = `약속을 추가했습니다: ${r.event.date.slice(5)} ${r.event.start}-${r.event.end} ${r.event.name}`;
+    if (r.moved.length) msg += "\n겹치는 과제 계획을 옮겼습니다:\n· " + r.moved.join("\n· ");
+    if (r.unresolved.length) msg += "\n[주의] " + r.unresolved.join("\n[주의] ");
+    toast(msg, 9000);
+    state.weekDate = r.event.date;
+    await Promise.all([loadEvents(), loadWeek(), loadPlans()]);
+  } catch (e) { toast(e.message); }
+};
+$("events").onclick = async (e) => {
+  const id = e.target.dataset.ev; if (!id) return;
+  try { await api("/api/events/" + encodeURIComponent(id), { method: "DELETE" }); await Promise.all([loadEvents(), loadWeek()]); }
+  catch (err) { toast(err.message); }
+};
+
+/* ---------- 매주 반복 일정 ---------- */
+async function loadWeekly() {
+  const { weekly } = await api("/api/weekly");
+  $("weekly").innerHTML = weekly.length ? weekly.map((w) => {
+    const repeat = w.count == null ? "계속 반복" : `${w.count}회 중 ${w.remaining}회 남음 (~${w.last_date.slice(5)})`;
+    return `<li><div class="grow"><b>${esc(w.name)}${w.at_school ? "" : '<span class="tag">학교 밖</span>'}</b>
+      <span class="muted small">${w.weekday} ${w.start}-${w.end} · ${repeat}</span></div>
+      <button class="x" data-weekly="${esc(w.id)}" title="삭제">✕</button></li>`;
+  }).join("") : '<li class="muted small">등록된 반복 일정이 없습니다. 수업 시간표를 여기에 추가하세요.</li>';
+}
+$("wkAdd").onclick = async () => {
+  try {
+    const r = await api("/api/weekly", json({
+      name: $("wkName").value, short: $("wkShort").value, day: $("wkDay").value, start: $("wkStart").value, end: $("wkEnd").value,
+      from: $("wkFrom").value, count: $("wkCount").value, at_school: $("wkSchool").checked,
+    }));
+    $("wkName").value = ""; $("wkShort").value = "";
+    let msg = `반복 일정을 추가했습니다: ${r.entry.weekday} ${r.entry.start}-${r.entry.end} ${r.entry.name}`;
+    if (r.moved.length) msg += "\n겹치는 과제 계획을 옮겼습니다:\n· " + r.moved.join("\n· ");
+    if (r.unresolved.length) msg += "\n[주의] " + r.unresolved.join("\n[주의] ");
+    toast(msg, 8000);
+    await Promise.all([loadWeekly(), loadWeek(), loadPlans()]);
+  } catch (e) { toast(e.message); }
+};
+$("weekly").onclick = async (e) => {
+  const id = e.target.dataset.weekly; if (!id) return;
+  if (!confirm("이 반복 일정을 삭제할까요?")) return;
+  try { await api("/api/weekly/" + encodeURIComponent(id), { method: "DELETE" }); await Promise.all([loadWeekly(), loadWeek()]); }
+  catch (err) { toast(err.message); }
+};
+
+/* ---------- 저장된 계획 ---------- */
+async function loadPlans() {
+  const { plans } = await api("/api/plans");
+  $("plans").innerHTML = plans.length ? plans.map((p) =>
+    `<li><div class="grow"><b>${esc(p.assignment)}<span class="tag ${p.priority}">${PRIORITY[p.priority] || p.priority}</span>${p.rescheduled ? '<span class="tag">미룬 적 있음</span>' : ""}</b>
+      <span class="muted small">마감 ${esc(p.deadline.slice(5))} · ${p.sessions}개 세션 ${p.hours}h (남은 ${p.remaining_hours}h) · ${esc(p.span)}</span></div>
+      <button class="x" data-plan="${esc(p.id)}" title="계획 삭제">✕</button></li>`
+  ).join("") : '<li class="muted small">저장된 계획이 없습니다.</li>';
+}
+$("plans").onclick = async (e) => {
+  const id = e.target.dataset.plan; if (!id) return;
+  if (!confirm("이 과제의 저장된 계획을 삭제할까요?")) return;
+  try { await api("/api/plans/" + encodeURIComponent(id), { method: "DELETE" }); await Promise.all([loadPlans(), loadWeek()]); }
+  catch (err) { toast(err.message); }
+};
+
+/* ---------- 시작 ---------- */
+$("evDate").value = $("wkFrom").value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+Promise.all([loadWeek(), loadAssignments(), loadWeekly(), loadEvents(), loadPlans()]).catch((e) => toast(e.message));
+// 새로 고침해도 진행 중이던 실행을 이어서 보여 준다.
+api("/api/run?since=0").then((r) => {
+  if (!r.run_id) return;
+  $("runCard").hidden = false; $("runTitle").textContent = "실행 과정 · " + r.assignment;
+  renderPipe(null, r.done); r.events.forEach(addStep); state.next = r.next;
+  if (r.done) { renderPipe(null, true); if (r.summary) showSummary(r.summary); } else { setRunning(true); poll(); }
+}).catch(() => {});
+setInterval(() => { if (!state.running) loadWeek().catch(() => {}); }, 60000);
+</script>
+</body>
+</html>

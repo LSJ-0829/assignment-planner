@@ -1,0 +1,5 @@
+autogen-agentchat==0.7.5
+autogen-ext[openai]==0.7.5
+python-dotenv>=1.0
+pypdf>=5.0
+pytest>=8.0
