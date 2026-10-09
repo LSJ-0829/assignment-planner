@@ -2,7 +2,7 @@
 
 예)  python main.py --app                             # 화면을 앱 창으로 실행 (과제 PDF 끌어다 놓기)
     python main.py                                   # 과제1 명세서로 지금부터 계획 (터미널)
-    python main.py --assignment data/hw3_no_date.pdf --deadline 10/1 --note "전기자기학1 과제, 서술형 2문제"
+    python main.py --assignment 과제.pdf --deadline 10/1 --note "전기자기학1 과제, 서술형 2문제"
     python main.py --add-weekly "화 18:00-21:45 인공지능프로젝트" --repeat 16    # 매주 반복 일정 추가
     python main.py --add-event "10/9 18:00-20:00 저녁 약속"                    # 특정 날짜의 약속 추가
     python main.py --week                            # 이번 주 시간표 보기
