@@ -16,6 +16,8 @@ cd assignment-planner
 bash run.sh            # Windows: run.bat (더블클릭도 가능)
 ```
 
+제출 ZIP으로 받았다면 압축을 푼 뒤 `code` 폴더에서 `bash run.sh`(Windows: `run.bat`)를 실행합니다.
+
 1. 처음 실행하면 가상환경(`.venv`)을 만들고 필요한 패키지를 자동으로 설치합니다. (1~3분)
 2. Groq API 키가 없으면 터미널에서 한 번 물어보고 `.env`에 저장합니다. 키는 [Groq Console](https://console.groq.com/keys)에서 무료로 발급받습니다.
 3. 주소창이 없는 **앱 창**이 열립니다. (설치된 Edge/Chrome의 앱 모드를 사용합니다. 창을 닫으면 프로그램이 끝납니다.)
@@ -166,7 +168,10 @@ bash run.sh --remove-plan <ID 또는 파일명>
 
 ## API 키와 모델
 
-- 키는 처음 실행할 때 입력하면 `.env`에 저장됩니다. 직접 넣으려면 `.env.example`을 `.env`로 복사해 `GROQ_API_KEY=…`를 채우거나 환경 변수로 설정합니다.
+- 필요한 환경 변수는 `GROQ_API_KEY` 하나입니다. 키는 아래 중 한 가지 방법으로 넣습니다.
+  - 처음 실행할 때 터미널에 입력 → `.env`에 저장됩니다.
+  - `.env.example`을 `.env`로 복사해 `GROQ_API_KEY=…`를 채우거나, 환경 변수로 설정합니다.
+  - 제출 ZIP에 들어 있는 빈 `API_KEY.txt`(`code` 폴더의 바로 위)에 키만 한 줄로 붙여 넣습니다.
 - `GROQ_MODEL` 환경 변수로 모델을 바꿀 수 있습니다. (기본 `openai/gpt-oss-120b`)
 - Groq 무료 등급은 분당 8,000 토큰, 하루 200,000 토큰 한도가 있습니다. 한 번 실행에 약 2만~4만 토큰을 씁니다. 분당 한도에 걸리면 60초 기다렸다가 자동으로 재시도하고, 하루 한도에 걸리면 안내 후 종료합니다.
 
